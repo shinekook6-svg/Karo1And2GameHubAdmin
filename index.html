@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karo Admin Final Control</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        :root { --bg: #0c0c1e; --card: #16213e; --accent: #d1a039; --text: #ffffff; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
+        
+        .admin-nav { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; border-bottom: 1px solid #2c3e50; white-space: nowrap; }
+        .nav-btn { background: var(--card); color: white; border: 1px solid var(--accent); padding: 8px 15px; border-radius: 20px; font-size: 14px; cursor: pointer; }
+        .nav-btn.active { background: var(--accent); }
+
+        .container { margin-top: 20px; display: none; }
+        .card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #2c3e50; }
+        
+        h3 { color: var(--accent); margin-top: 0; }
+        input, textarea, select { 
+            width: 100%; padding: 12px; margin: 8px 0; 
+            background: #1a1a2e; color: white; border: 1px solid #2c3e50; 
+            border-radius: 8px; box-sizing: border-box; 
+        }
+        
+        button { width: 100%; background: var(--accent); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; margin-top: 5px; cursor: pointer; }
+
+        .price-row { display: flex; justify-content: space-between; align-items: center; background: #0f3460; padding: 10px; margin-bottom: 5px; border-radius: 8px; }
+        .price-row span { font-size: 14px; width: 40%; }
+        .price-row input { width: 30%; margin: 0; padding: 5px; text-align: right; }
+        .price-row button { width: 20%; margin: 0; padding: 5px; font-size: 12px; background: #27ae60; }
+
+        .list-row { background: #0f3460; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-group { display: flex; gap: 5px; }
+        .del-btn { background: #c0392b; width: auto; padding: 5px 12px; font-size: 12px; }
+
+        #login-screen { text-align: center; margin-top: 100px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="card" style="max-width: 350px; margin: auto;">
+            <h3>Admin Access</h3>
+            <input type="password" id="admin-pass" placeholder="Enter Password">
+            <button onclick="checkAdmin()">Login</button>
+        </div>
+    </div>
+
+    <div id="panel" class="container">
+        <div class="admin-nav">
+            <button class="nav-btn active" onclick="switchTab('dash', this)">📊 Stats</button>
+            
+            <button class="nav-btn" onclick="switchTab('order-list-tab', this)">📦 Orders</button>
+            <button class="nav-btn" onclick="switchTab('deposit-list-tab', this)">💰 Deposits</button>
+
+            <button class="nav-btn" onclick="switchTab('dia', this)">💎 Prices</button>
+            <button class="nav-btn" onclick="switchTab('gift', this)">🎁 GiftCard</button>
+            <button class="nav-btn" onclick="switchTab('acc', this)">🎮 Accounts</button>
+            <button class="nav-btn" onclick="switchTab('banner', this)">🖼️ Banner</button>
+
+            <button class="nav-btn" onclick="switchTab('pay', this)">💰 Pay</button>
+        </div>
+        
+        <div id="order-list-tab" class="tab-content" style="display:none;">
+    <div class="card">
+        <h3>Orders History</h3>
+        <div id="admin-orders-list"></div>
+    </div>
+</div>
+
+<div id="deposit-list-tab" class="tab-content" style="display:none;">
+    <div class="card">
+        <h3>Deposits History</h3>
+        <div id="admin-deposits-list"></div>
+    </div>
+</div>
+
+        <div id="dash" class="tab-content" style="display:block;">
+            <div class="card">
+                <h3>Shop Overview</h3>
+                <p>Total Users: <b id="total-users-count" style="color: #2ecc71;">0</b></p>
+                <p>Diamond Items: <b id="d-count">14</b></p>
+                <p>System Status: <span style="color:#2ecc71">Online</span></p>
+            </div>
+        </div>
+
+        <div id="dia" class="tab-content" style="display:none;">
+            <div class="card">
+                <h3>Update Diamond Prices</h3>
+                <div id="diamond-control-list"></div>
+            </div>
+        </div>
+
+        <div id="gift" class="tab-content" style="display:none;">
+            <div class="card">
+                <h3>Add Gift Card</h3>
+                <input type="text" id="g-name" placeholder="Name">
+                <input type="text" id="g-main-img" placeholder="Main Photo URL">
+                <textarea id="g-slides" placeholder="Slides (One URL per line)" rows="3"></textarea>
+                <input type="number" id="g-price" placeholder="Price">
+                <textarea id="g-info" placeholder="Info Details..." rows="3"></textarea>
+                <button onclick="saveComplex('giftcards', 'g')">Add Card</button>
+            </div>
+            <div id="gift-list" class="item-list"></div>
+        </div>
+
+        <div id="acc" class="tab-content" style="display:none;">
+            <div class="card">
+                <h3>Post New Account</h3>
+                <input type="text" id="a-name" placeholder="Account Title">
+                <input type="text" id="a-main-img" placeholder="Main Photo URL">
+                <textarea id="a-slides" placeholder="Detail Photo URLs (One per line)" rows="3"></textarea>
+                <input type="number" id="a-price" placeholder="Price">
+                <textarea id="a-info" placeholder="Account Details..." rows="3"></textarea>
+                <button onclick="saveComplex('accounts', 'a')">Post Account</button>
+            </div>
+            <div id="acc-list" class="item-list"></div>
+        </div>
+        
+        <div id="banner" class="tab-content" style="display:none;">
+    <div class="card">
+        <h3>Update Slide Banners</h3>
+        <p style="font-size:12px; color:#aaa;">Slide Banner ပုံ URL များကို ဒီမှာ ပြင်ပါ။</p>
+        
+        <label>Banner 1 (Image URL)</label>
+        <input type="text" id="bn1" placeholder="https://example.com/slide1.jpg">
+        
+        <label>Banner 2 (Image URL)</label>
+        <input type="text" id="bn2" placeholder="https://example.com/slide2.jpg">
+        
+        <label>Banner 3 (Image URL)</label>
+        <input type="text" id="bn3" placeholder="https://example.com/slide3.jpg">
+        
+        <label>Banner 4 (Image URL)</label>
+        <input type="text" id="bn4" placeholder="https://example.com/slide3.jpg">
+        <button onclick="saveBanners()" style="background: #27ae60;">Update Banners</button>
+    </div>
+</div>
+
+        <div id="pay" class="tab-content" style="display:none;">
+            <div class="card">
+                <h3>Payment Methods</h3>
+                <label>KBZ Pay</label>
+                <input type="text" id="kn" placeholder="Name">
+                <input type="text" id="kp" placeholder="Number">
+                <hr style="border:0.1px solid #2c3e50;">
+                <label>Wave Money</label>
+                <input type="text" id="wn" placeholder="Name">
+                <input type="text" id="wp" placeholder="Number">
+                <button onclick="savePayments()">Update Payments</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const admins = ["6870403909", "55111441"];
+    const firebaseConfig = {
+        apiKey: "AIzaSyC9AIQ5ZzQAbgnxMnqTXtbQWbl-33EqyC8",
+        databaseURL: "https://krdt-app-2ac62-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "krdt-app-2ac62",
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const diamondList = [
+        {id: 'weekly', name: 'Weekly Pass'}, {id: 'd86', name: '86 Diamonds'},
+        {id: 'd172', name: '172 Diamonds'}, {id: 'd257', name: '257 Diamonds'},
+        {id: 'd343', name: '343 Diamonds'}, {id: 'd429', name: '429 Diamonds'},
+        {id: 'd514', name: '514 Diamonds'}, {id: 'd600', name: '600 Diamonds'},
+        {id: 'd706', name: '706 Diamonds'}, {id: 'p50', name: '50+50 Promo'},
+        {id: 'p150', name: '150+150 Promo'}, {id: 'p250', name: '250+250 Promo'},
+        {id: 'p500', name: '500+500 Promo'}, {id: 'starlight', name: 'Starlight Card'}
+    ];
+
+    function checkAdmin() {
+        const pass = document.getElementById('admin-pass').value;
+        if(admins.includes(pass)) {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('panel').style.display = 'block';
+            loadDiamondControls();
+            loadAllData();
+            loadPaymentData();
+            loadBannerData();
+        } else { alert("မှားနေတယ် သားကြီး!"); }
+    }
+
+    function switchTab(id, btn) {
+        document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).style.display = 'block';
+        btn.classList.add('active');
+    }
+
+    function loadDiamondControls() {
+        const container = document.getElementById('diamond-control-list');
+        container.innerHTML = '';
+        diamondList.forEach(item => {
+            container.innerHTML += `
+                <div class="price-row">
+                    <span>${item.name}</span>
+                    <input type="number" id="input-${item.id}" placeholder="Price">
+                    <button onclick="updatePrice('${item.id}')">Update</button>
+                </div>`;
+            db.ref('prices/' + item.id).once('value', snap => {
+                if(snap.exists()) document.getElementById('input-'+item.id).value = snap.val();
+            });
+        });
+    }
+
+    function updatePrice(id) {
+        const newPrice = document.getElementById('input-'+id).value;
+        if(newPrice) db.ref('prices/'+id).set(parseInt(newPrice)).then(() => alert("Price Updated!"));
+    }
+
+    function saveComplex(path, pre) {
+        const data = {
+            name: document.getElementById(pre + '-name').value,
+            mainImg: document.getElementById(pre + '-main-img').value,
+            slides: document.getElementById(pre + '-slides').value.split('\n').filter(s => s.trim() !== ""),
+            price: document.getElementById(pre + '-price').value,
+            info: document.getElementById(pre + '-info').value
+        };
+        if(!data.name || !data.mainImg) return alert("Fill Name and Main Photo!");
+        db.ref('products/'+path).push(data).then(() => {
+            alert("Success!");
+            document.querySelectorAll('.tab-content input, .tab-content textarea').forEach(i => i.value = "");
+        });
+    }
+    
+    function loadAllData() {
+    renderList('giftcards', 'gift-list');
+    renderList('accounts', 'acc-list');
+    
+    // --- အော်ဒါစာရင်းကြည့်ရန် (Real-time) ---
+    db.ref('orders').on('value', snap => {
+        const container = document.getElementById('admin-orders-list');
+        container.innerHTML = "";
+        const orders = [];
+        snap.forEach(child => { orders.unshift({key: child.key, ...child.val()}); });
+
+        orders.forEach(o => {
+            if(o.status === 'pending') {
+                container.innerHTML += `
+                <div class="card" style="border-left: 5px solid #d1a039;">
+                    <p><b>📦 Item:</b> ${o.item} (${o.price} Ks)</p>
+                    <p><b>👤 User:</b> ${o.uid} | <b>🎮 ID:</b> ${o.gId}(${o.sId})</p>
+                    <div style="display:flex; gap:10px;">
+                        <button onclick="manageOrder('${o.key}', '${o.uid}', ${o.price}, 'approve', 'order')" style="background:#27ae60;">Approve</button>
+                        <button onclick="manageOrder('${o.key}', '${o.uid}', ${o.price}, 'reject', 'order')" style="background:#c0392b;">Reject</button>
+                    </div>
+                </div>`;
+            }
+        });
+    });
+
+    // --- ငွေဖြည့်စာရင်းကြည့်ရန် (Real-time) ---
+    db.ref('deposits').on('value', snap => {
+        const container = document.getElementById('admin-deposits-list');
+        container.innerHTML = "";
+        const deposits = [];
+        snap.forEach(child => { deposits.unshift({key: child.key, ...child.val()}); });
+
+        deposits.forEach(d => {
+            if(d.status === 'pending') {
+                container.innerHTML += `
+                <div class="card" style="border-left: 5px solid #2ecc71;">
+                    <p><b>💰 Deposit:</b> ${d.amount} Ks (${d.method})</p>
+                    <p><b>👤 User:</b> ${d.uid}</p>
+                    <div style="display:flex; gap:10px;">
+                        <button onclick="manageOrder('${d.key}', '${d.uid}', ${d.amount}, 'approve', 'deposit')" style="background:#27ae60;">Approve</button>
+                        <button onclick="manageOrder('${d.key}', '${d.uid}', ${d.amount}, 'reject', 'deposit')" style="background:#c0392b;">Reject</button>
+                    </div>
+                </div>`;
+            }
+        });
+    });
+
+    db.ref('users').on('value', snap => {
+        document.getElementById('total-users-count').innerText = snap.numChildren();
+    });
+}
+
+    function renderList(path, containerId) {
+        db.ref('products/'+path).on('value', snap => {
+            const container = document.getElementById(containerId);
+            container.innerHTML = "";
+            snap.forEach(child => {
+                const item = child.val();
+                container.innerHTML += `
+                    <div class="list-row">
+                        <img src="${item.mainImg}" style="width:40px; height:40px; border-radius:5px; object-fit:cover;">
+                        <span style="flex:1; margin-left:10px;">${item.name} (${item.price} Ks)</span>
+                        <button class="del-btn" onclick="deleteItem('${path}','${child.key}')">Del</button>
+                    </div>`;
+            });
+        });
+    }
+
+    function deleteItem(path, id) {
+        if(confirm("Are you sure?")) db.ref('products/'+path+'/'+id).remove();
+    }
+
+    function savePayments() {
+        const payData = {
+            kbzName: document.getElementById('kn').value,
+            kbzNum: document.getElementById('kp').value,
+            waveName: document.getElementById('wn').value,
+            waveNum: document.getElementById('wp').value
+        };
+        db.ref('settings/payments').set(payData).then(() => alert("Payments Updated!"));
+    }
+
+    function loadPaymentData() {
+        db.ref('settings/payments').once('value', snap => {
+            if(snap.exists()){
+                const d = snap.val();
+                document.getElementById('kn').value = d.kbzName || "";
+                document.getElementById('kp').value = d.kbzNum || "";
+                document.getElementById('wn').value = d.waveName || "";
+                document.getElementById('wp').value = d.waveNum || "";
+            }
+        });
+    }
+    // Banner သိမ်းတဲ့ function
+function saveBanners() {
+    const bannerData = {
+        b1: document.getElementById('bn1').value,
+        b2: document.getElementById('bn2').value,
+        b3: document.getElementById('bn3').value,
+        b4: document.getElementById('bn4').value
+    };
+
+    db.ref('settings/banners').set(bannerData).then(() => {
+        alert("Banners Update ဖြစ်သွားပါပြီ သားကြီး!");
+    });
+}
+
+function loadBannerData() {
+    db.ref('settings/banners').once('value', snap => {
+        if(snap.exists()){
+            const d = snap.val();
+            document.getElementById('bn1').value = d.b1 || "";
+            document.getElementById('bn2').value = d.b2 || "";
+            document.getElementById('bn3').value = d.b3 || "";
+            document.getElementById('bn4').value = d.b4 || "";
+        }
+    });
+}
+function manageOrder(id, uid, amount, action, category) {
+    if(!confirm(`ဒီအော်ဒါကို ${action} လုပ်မှာ သေချာလား?`)) return;
+
+    const path = (category === 'order') ? 'orders' : 'deposits';
+    
+    if(action === 'approve') {
+        db.ref('users/' + uid + '/balance').once('value', snap => {
+            let currentBal = parseInt(snap.val() || 0);
+            let newBal = (category === 'deposit') ? (currentBal + amount) : (currentBal - amount);
+            
+            if(newBal < 0 && category === 'order') {
+                alert("Error: User မှာ ပိုက်ဆံမလုံလောက်တော့ဘူး!");
+                return;
+            }
+
+            // တိကျတဲ့ path ဖြစ်တဲ့ /balance ကိုပဲ update လုပ်မယ်
+            db.ref('users/' + uid + '/balance').set(newBal).then(() => {
+                db.ref(path + '/' + id).update({ status: 'completed' });
+                alert("Approve လုပ်ပြီးပါပြီ!");
+            });
+        });
+    } else {
+        db.ref(path + '/' + id).update({ status: 'rejected' });
+        alert("အော်ဒါကို ပယ်ဖျက်လိုက်ပါပြီ!");
+    }
+}
+
+</script>
+</body>
+  </html>
